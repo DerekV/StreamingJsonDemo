@@ -13,7 +13,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public final class Foo {
+public final class GithubIssuesExample {
 
     // an example from the github api docs
     private static final String ENDPOINT = "https://api.github.com/search/issues?q=windows+label:bug+language:python+state:open";
