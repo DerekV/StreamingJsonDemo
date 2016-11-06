@@ -1,10 +1,11 @@
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.io.SerializedString;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -15,8 +16,7 @@ import okhttp3.Response;
 public final class Foo {
 
     // an example from the github api docs
-    public static final String ENDPOINT = "https://api.github.com/search/issues?q=windows+label:bug+language:python+state:open";
-    public static final SerializedString ITEMS = new SerializedString("items");
+    private static final String ENDPOINT = "https://api.github.com/search/issues?q=windows+label:bug+language:python+state:open";
 
     public static void main(String args[]) {
 
@@ -38,38 +38,46 @@ public final class Foo {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 final InputStream stream = response.body().byteStream();
-                JsonFactory jsonFactory = new JsonFactory(); // or, for data binding, org.codehaus.jackson.mapper.MappingJsonFactory
-                JsonParser jp = jsonFactory.createParser(stream);
+                JsonReader reader = new JsonReader(new InputStreamReader(stream, "UTF-8"));
+                Gson gson = new GsonBuilder().create();
 
-                // find and consume object start
-
-                while (jp.nextToken() != JsonToken.START_OBJECT) {
-                    // do nothing
-                }
-
-                // find the items
-                while (!jp.nextFieldName(ITEMS)) {
-                }
-                // now get stuff
-
-                while (jp.nextToken() != null) {
-                    JsonToken token = jp.getCurrentToken();
-                    if(token == JsonToken.FIELD_NAME) {
-                        String fieldName = jp.getValueAsString();
-                        if("title".equals(fieldName)) {
-                            System.out.println("title = " + jp.nextTextValue());
-                        } else if ("number".equals(fieldName)) {
-                            System.out.println("number = " + jp.nextIntValue(-1));
-                        }
+                boolean foundItems = false;
+                reader.setLenient(true);
+                reader.beginObject();
+                while(reader.hasNext()) {
+                    String fieldName = reader.nextName();
+                    if("items".equals(fieldName)) {
+                        foundItems = true;
+                        readItems(reader);
+                    } else {
+                        reader.skipValue();
                     }
+
                 }
+                reader.endObject();
 
-
-
+                if(!foundItems) {
+                    System.out.println("I did not find the \"items\" field");
+                }
 
             }
         });
 
     }
+
+    private static void readItems(JsonReader reader) throws IOException {
+        Gson gson = new GsonBuilder().create();
+        int count = 0;
+        reader.beginArray();
+        while(reader.hasNext()) {
+            GithubIssue issue = gson.fromJson(reader,GithubIssue.class);
+            System.out.println(issue.toString());
+            count++;
+        }
+        reader.endArray();
+
+        System.out.println("counted " + count + "issues");
+    }
+
 
 }
